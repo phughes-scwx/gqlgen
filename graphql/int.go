@@ -62,24 +62,43 @@ func MarshalInt32(i int32) Marshaler {
 func UnmarshalInt32(v any) (int32, error) {
 	switch v := v.(type) {
 	case string:
-		iv, err := strconv.ParseInt(v, 10, 32)
+		iv, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			return 0, err
 		}
-		return int32(iv), nil
+		return safeCastInt32(iv)
 	case int:
-		return int32(v), nil
+		return safeCastInt32(int64(v))
 	case int64:
-		return int32(v), nil
+		return safeCastInt32(v)
 	case json.Number:
-		iv, err := strconv.ParseInt(string(v), 10, 32)
+		iv, err := strconv.ParseInt(string(v), 10, 64)
 		if err != nil {
 			return 0, err
 		}
-		return int32(iv), nil
+		return safeCastInt32(iv)
 	case nil:
 		return 0, nil
 	default:
 		return 0, fmt.Errorf("%T is not an int", v)
 	}
+}
+
+type Int32OverflowError struct {
+	IVal int64
+	SVal string
+}
+
+func (e *Int32OverflowError) Error() string {
+	if e.SVal != "" {
+		return fmt.Sprintf("%s overflows int32", e.SVal)
+	}
+	return fmt.Sprintf("%d overflows int32", e.IVal)
+}
+
+func safeCastInt32(i int64) (int32, error) {
+	if i > 2147483647 || i < -2147483648 {
+		return 0, &Int32OverflowError{IVal: i}
+	}
+	return int32(i), nil
 }
